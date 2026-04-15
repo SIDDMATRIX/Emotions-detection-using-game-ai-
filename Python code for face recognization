@@ -1,0 +1,51 @@
+import cv2
+from deepface import DeepFace
+
+cap = cv2.VideoCapture(0)
+
+frame_count = 0
+emotion = "..."
+
+print("Press 'q' to exit")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    frame = cv2.flip(frame, 1)
+    frame_count += 1
+
+    # Run detection every 5 frames
+    if frame_count % 5 == 0:
+        try:
+            result = DeepFace.analyze(
+                frame,
+                actions=['emotion'],
+                enforce_detection=False,
+                detector_backend='opencv'
+            )
+
+            if isinstance(result, list):
+                emotion = result[0]['dominant_emotion']
+            else:
+                emotion = result['dominant_emotion']
+
+        except:
+            emotion = "..."
+
+    # Always display last detected emotion
+    cv2.putText(frame, f"Emotion: {emotion}",
+                (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2)
+
+    cv2.imshow("Emotion AI (Optimized)", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
