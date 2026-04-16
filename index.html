@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #videoFeed {
+            width: 640px;
+            height: 480px;
+            border: 1px solid black;
+        }
+        #gameCanvas {
+            width: 640px;
+            height: 480px;
+            border: 1px solid black;
+        }
+        #emotionDisplay {
+            font-size: 24px;
+            margin: 10px;
+        }
+        #musicControls {
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Emotion Detection Game</h1>
+    <video id="videoFeed" autoplay></video>
+    <canvas id="gameCanvas"></canvas>
+    <div id="emotionDisplay">Current Emotion: </div>
+    <div id="musicControls">
+        <button id="playMusic">Play Music</button>
+        <button id="stopMusic">Stop Music</button>
+    </div>
+
+    <script>
+        // Camera setup for video feed
+        const video = document.getElementById('videoFeed');
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error('Error accessing camera: ', err));
+    </script>
+</body>
+</html>
