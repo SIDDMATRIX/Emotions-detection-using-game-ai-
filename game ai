@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMOTION QUEST</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Exo+2:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & BASE ─────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #05060f;
+  --panel:   #0b0d1a;
+  --cyan:    #00ffe5;
+  --magenta: #ff00cc;
+  --amber:   #ffaa00;
+  --lime:    #00ff88;
+  --red:     #ff2244;
+  --text:    #c4d4e8;
+  --dim:     #3a4a60;
+  --font-game: 'Press Start 2P', monospace;
+  --font-ui:   'Exo 2', sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* CRT scanlines overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* Background pulse grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,229,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,229,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* ─── LAYOUT ────────────────────────────────────────────────────────── */
+#app {
+  width: 100%; max-width: 580px;
+  padding: 16px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  position: relative; z-index: 1;
+}
+
+.screen { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.screen.hidden { display: none; }
+
+/* ─── SHARED COMPONENTS ─────────────────────────────────────────────── */
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(0,255,229,0.12);
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  position: relative;
+}
+
+.panel::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(0,255,229,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.corner-bracket {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-color: var(--cyan);
+  border-style: solid;
+  opacity: 0.5;
+}
+.corner-bracket.tl { top: 4px; left: 4px; border-width: 2px 0 0 2px; }
+.corner-bracket.tr { top: 4px; right: 4px; border-width: 2px 2px 0 0; }
+.corner-bracket.bl { bottom: 4px; left: 4px; border-width: 0 0 2px 2px; }
+.corner-bracket.br { bottom: 4px; right: 4px; border-width: 0 2px 2px 0; }
+
+.glow-btn {
+  background: transparent;
+  border: 2px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-game);
+  font-size: 0.65rem;
+  padding: 14px 32px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.glow-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--cyan);
+  opacity: 0;
+  transition: opacity 0.2s;
+  clip-path: inherit;
+}
+.glow-btn:hover::before { opacity: 0.1; }
+.glow-btn:hover {
+  box-shadow: 0 0 20px rgba(0,255,229,0.5), 0 0 40px rgba(0,255,229,0.2);
+  text-shadow: 0 0 10px var(--cyan);
+}
+.glow-btn:active { transform: scale(0.97); }
+
+/* ─── START SCREEN ──────────────────────────────────────────────────── */
+#screen-start .logo {
+  font-family: var(--font-game);
+  font-size: clamp(1.2rem, 5vw, 1.8rem);
+  text-align: center;
+  line-height: 1.6;
+  color: var(--cyan);
+  text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(0,255,229,0.4);
+  letter-spacing: 2px;
+}
+
+#screen-start .logo span {
+  color: var(--magenta);
+  text-shadow: 0 0 30px var(--magenta), 0 0 60px rgba(255,0,204,0.4);
+}
+
+.tagline {
+  color: var(--dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.emotion-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.emotion-chip {
+  background: rgba(0,255,229,0.05);
+  border: 1px solid rgba(0,255,229,0.15);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--dim);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.instructions {
+  font-size: 0.8rem;
+  color: var(--dim);
+  text-align: center;
+  line-height: 1.8;
+  font-weight: 400;
+}
+
+/* ─── HUD ───────────────────────────────────────────────────────────── */
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.hud-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hud-label {
+  font-family: var(--font-game);
+  font-size: 0.45rem;
+  color: var(--dim);
+  letter-spacing: 2px;
+}
+
+.hud-value {
+  font-family: var(--font-game);
+  font-size: 1.1rem;
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0,255,229,0.6);
+}
+
+.hud-center { text-align: center; }
+
+/* ─── TIMER BAR ─────────────────────────────────────────────────────── */
+.timer-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+#timer-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta));
+  box-shadow: 0 0 10px rgba(0,255,229,0.5);
+  transition: width 1s linear, background 0.4s;
+}
+
+/* ─── EMOTION CARD ──────────────────────────────────────────────────── */
+#emotion-card {
+  text-align: center;
+  padding: 28px 20px;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+
+#emotion-card.state-success {
+  border-color: var(--lime) !important;
+  box-shadow: 0 0 30px rgba(0,255,136,0.3), inset 0 0 30px rgba(0,255,136,0.05);
+}
+
+#emotion-card.state-fail {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 30px rgba(255,34,68,0.3);
+}
+
+.card-directive {
+  font-family: var(--font-game);
+  font-size: 0.45rem;
+  color: var(--dim);
+  letter-spacing: 4px;
+  margin-bottom: 14px;
+}
+
+#target-emoji {
+  font-size: 5.5rem;
+  line-height: 1;
+  display: block;
+  filter: drop-shadow(0 0 16px rgba(255,255,255,0.2));
+  transition: transform 0.15s;
+}
+
+#target-emoji.pop {
+  animation: pop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.4) rotate(-5deg); }
+  60%  { transform: scale(0.9) rotate(3deg); }
+  100% { transform: scale(1); }
+}
+
+#target-name {
+  font-family: var(--font-game);
+  font-size: 1.1rem;
+  margin-top: 12px;
+  letter-spacing: 3px;
+  transition: color 0.4s;
+}
+
+#target-hint {
+  font-size: 0.8rem;
+  color: var(--dim);
+  margin-top: 6px;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ─── WEBCAM SECTION ────────────────────────────────────────────────── */
+.cam-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.cam-box {
+  position: relative;
+  border: 1px solid rgba(0,255,229,0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#webcam-el {
+  width: 152px;
+  height: 114px;
+  object-fit: cover;
+  display: block;
+  transform: scaleX(-1);
+}
+
+.cam-live-badge {
+  position: absolute;
+  top: 6px; left: 6px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: var(--font-game);
+  font-size: 0.38rem;
+  color: var(--red);
+  display: flex; align-items: center; gap: 4px;
+}
+
+.cam-live-badge::before {
+  content: '';
+  width: 5px; height: 5px;
+  background: var(--red);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--red);
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.detection-box {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(0,255,229,0.08);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.det-label {
+  font-family: var(--font-game);
+  font-size: 0.38rem;
+  color: var(--dim);
+  letter-spacing: 2px;
+}
+
+#detected-value {
+  font-family: var(--font-game);
+  font-size: 0.75rem;
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(255,170,0,0.5);
+  min-height: 1.4em;
+  transition: color 0.3s;
+}
+
+#detected-value.state-match {
+  color: var(--lime);
+  text-shadow: 0 0 10px rgba(0,255,136,0.6);
+}
+
+#feedback-text {
+  font-size: 0.72rem;
+  color: var(--dim);
+  font-weight: 600;
+  min-height: 1.2em;
+  line-height: 1.4;
+  transition: color 0.3s;
+}
+
+#feedback-text.good { color: var(--lime); }
+#feedback-text.bad  { color: var(--red); }
+#feedback-text.dim  { color: var(--dim); }
+
+/* ─── ROUND DOTS ────────────────────────────────────────────────────── */
+.round-dots {
+  display: flex; gap: 8px; justify-content: center;
+}
+
+.round-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.4s, box-shadow 0.4s;
+}
+
+.round-dot.active {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.round-dot.done-win {
+  background: var(--lime);
+  box-shadow: 0 0 6px var(--lime);
+}
+
+.round-dot.done-lose {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+}
+
+/* ─── RESULT SCREEN ─────────────────────────────────────────────────── */
+#screen-result .title {
+  font-family: var(--font-game);
+  font-size: 1rem;
+  color: var(--cyan);
+  text-align: center;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px var(--cyan);
+}
+
+.big-score {
+  font-family: var(--font-game);
+  font-size: 3.5rem;
+  color: var(--amber);
+  text-shadow: 0 0 30px var(--amber), 0 0 60px rgba(255,170,0,0.4);
+  text-align: center;
+  line-height: 1;
+}
+
+.score-denom {
+  font-family: var(--font-game);
+  font-size: 0.75rem;
+  color: var(--dim);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.result-rank {
+  font-family: var(--font-game);
+  font-size: 0.6rem;
+  color: var(--magenta);
+  text-align: center;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px var(--magenta);
+}
+
+.result-grid {
+  display: flex; flex-wrap: wrap;
+  gap: 10px; justify-content: center;
+  width: 100%;
+}
+
+.result-card {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 12px 14px;
+  min-width: 76px;
+  transition: border-color 0.3s;
+}
+
+.result-card.win  { border-color: rgba(0,255,136,0.3); }
+.result-card.lose { opacity: 0.5; }
+
+.result-card .r-emoji { font-size: 1.8rem; }
+.result-card .r-name {
+  font-family: var(--font-game);
+  font-size: 0.38rem;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+.result-card .r-icon { font-size: 1rem; }
+
+/* ─── FLASH OVERLAY ─────────────────────────────────────────────────── */
+#flash {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+#flash.green { background: rgba(0,255,136,0.08); }
+#flash.red   { background: rgba(255,34,68,0.08); }
+
+/* ─── LOADING DOTS ──────────────────────────────────────────────────── */
+.dot-loader {
+  display: inline-flex; gap: 4px;
+}
+.dot-loader span {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--dim);
+  animation: dotpulse 1s ease-in-out infinite;
+}
+.dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotpulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.4); }
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────────────────────── */
+@media (max-height: 600px) {
+  #target-emoji { font-size: 4rem; }
+  .panel { padding: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── START SCREEN ─────────────────────────────────────────────── -->
+  <div id="screen-start" class="screen">
+
+    <div style="font-size:3.5rem; text-align:center; filter:drop-shadow(0 0 20px rgba(0,255,229,0.4))">🎭</div>
+
+    <div class="logo">EMOTION<br><span>QUEST</span></div>
+    <div class="tagline">AI reads your face in real-time</div>
+
+    <div class="panel">
+      <div class="corner-bracket tl"></div><div class="corner-bracket tr"></div>
+      <div class="corner-bracket bl"></div><div class="corner-bracket br"></div>
+      <div class="emotion-grid">
+        <div class="emotion-chip">😊 Happy</div>
+        <div class="emotion-chip">😢 Sad</div>
+        <div class="emotion-chip">😠 Angry</div>
+        <div class="emotion-chip">😮 Surprised</div>
+        <div class="emotion-chip">😨 Fearful</div>
+        <div class="emotion-chip">😐 Neutral</div>
+      </div>
+    </div>
+
+    <p class="instructions">
+      6 rounds · 12 seconds each<br>
+      Match the emotion on screen<br>
+      Claude AI scans your face live!
+    </p>
+
+    <button class="glow-btn" id="btn-start">▶ &nbsp; START GAME</button>
+    <p style="font-size:0.7rem;color:#2a3a50;text-align:center">
+      Webcam stays local · Snapshots sent to Claude Vision
+    </p>
+
+  </div>
+
+  <!-- ── GAME SCREEN ──────────────────────────────────────────────── -->
+  <div id="screen-game" class="screen hidden">
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-box">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-value" id="hud-score">00</div>
+      </div>
+      <div class="round-dots" id="round-dots"></div>
+      <div class="hud-box" style="align-items:flex-end">
+        <div class="hud-label">TIME</div>
+        <div class="hud-value" id="hud-time">12</div>
+      </div>
+    </div>
+
+    <!-- Timer bar -->
+    <div class="timer-track">
+      <div id="timer-fill"></div>
+    </div>
+
+    <!-- Emotion target card -->
+    <div class="panel" id="emotion-card">
+      <div class="corner-bracket tl"></div><div class="corner-bracket tr"></div>
+      <div class="corner-bracket bl"></div><div class="corner-bracket br"></div>
+      <div class="card-directive">MAKE THIS FACE</div>
+      <span id="target-emoji">😊</span>
+      <div id="target-name">HAPPY</div>
+      <div id="target-hint">Smile big! Show those teeth!</div>
+    </div>
+
+    <!-- Webcam + Detection -->
+    <div class="cam-row">
+      <div class="cam-box">
+        <video id="webcam-el" autoplay playsinline muted></video>
+        <div class="cam-live-badge">LIVE</div>
+      </div>
+      <div class="detection-box">
+        <div class="det-label">AI DETECTING</div>
+        <div id="detected-value">—</div>
+        <div id="feedback-text" class="dim">
+          <span class="dot-loader">
+            <span></span><span></span><span></span>
+          </span>
+          &nbsp;Analyzing&hellip;
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RESULT SCREEN ────────────────────────────────────────────── -->
+  <div id="screen-result" class="screen hidden">
+
+    <div id="result-icon" style="font-size:3.5rem;text-align:center">🏆</div>
+    <div class="title" id="result-title">GAME OVER</div>
+
+    <div class="big-score" id="result-score">0</div>
+    <div class="score-denom" id="result-denom">OUT OF 6</div>
+    <div class="result-rank" id="result-rank">— SCORE RANK —</div>
+
+    <div class="result-grid" id="result-grid"></div>
+
+    <button class="glow-btn" id="btn-restart">↺ &nbsp; PLAY AGAIN</button>
+
+  </div>
+
+</div>
+
+<!-- Hidden elements for capture -->
+<canvas id="cap-canvas" style="display:none"></canvas>
+<div id="flash"></div>
+
+<script>
+// ── EMOTION DATA ──────────────────────────────────────────────────────
+const EMOTIONS = [
+  { id:'happy',     emoji:'😊', color:'#FFD700', hint:'Smile big! Show those teeth!' },
+  { id:'sad',       emoji:'😢', color:'#4FC3F7', hint:'Frown... look down and gloomy...' },
+  { id:'angry',     emoji:'😠', color:'#FF5252', hint:'Furrow brows hard! Look fierce!' },
+  { id:'surprised', emoji:'😮', color:'#FF9800', hint:'Open mouth, raise eyebrows wide!' },
+  { id:'fearful',   emoji:'😨', color:'#CE93D8', hint:'Wide eyes, look scared!' },
+  { id:'neutral',   emoji:'😐', color:'#90A4AE', hint:'Relax. Blank face. Feel nothing.' },
+];
+
+const ROUND_TIME = 12;
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let G = {
+  round: 0,
+  score: 0,
+  timeLeft: 0,
+  timerInterval: null,
+  detectInterval: null,
+  detecting: false,
+  ended: false,
+  shuffled: [],
+  results: [],   // {emotion, won}
+  stream: null,
+};
+
+// ── DOM ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const screens = { start: $('screen-start'), game: $('screen-game'), result: $('screen-result') };
+
+function show(name) {
+  Object.values(screens).forEach(s => s.classList.add('hidden'));
+  screens[name].classList.remove('hidden');
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+function flash(color) {
+  const f = $('flash');
+  f.className = color;
+  f.style.opacity = '1';
+  setTimeout(() => { f.style.transition = 'opacity 0.6s'; f.style.opacity = '0'; }, 120);
+  setTimeout(() => { f.style.transition = ''; }, 800);
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────
+$('btn-start').addEventListener('click', initGame);
+$('btn-restart').addEventListener('click', initGame);
+
+// ── GAME INIT ─────────────────────────────────────────────────────────
+async function initGame() {
+  try {
+    G.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    $('webcam-el').srcObject = G.stream;
+  } catch {
+    alert('⚠️ Camera access required to play! Please allow camera permission and try again.');
+    return;
+  }
+
+  G.round = 0;
+  G.score = 0;
+  G.results = [];
+  G.shuffled = shuffle(EMOTIONS);
+
+  // Build round dots
+  const dots = $('round-dots');
+  dots.innerHTML = '';
+  G.shuffled.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'round-dot';
+    d.id = `dot-${i}`;
+    dots.appendChild(d);
+  });
+
+  show('game');
+  startRound();
+}
+
+// ── ROUND START ───────────────────────────────────────────────────────
+function startRound() {
+  if (G.timerInterval) clearInterval(G.timerInterval);
+  if (G.detectInterval) clearInterval(G.detectInterval);
+
+  G.ended = false;
+  G.detecting = false;
+  G.timeLeft = ROUND_TIME;
+
+  const em = G.shuffled[G.round];
+
+  // Update HUD
+  $('hud-score').textContent = pad2(G.score);
+  $('hud-time').textContent  = ROUND_TIME;
+
+  // Update dots
+  G.shuffled.forEach((_, i) => {
+    const d = $(`dot-${i}`);
+    d.className = 'round-dot';
+    if (i < G.round)         { /* already styled via endRound */ }
+    else if (i === G.round)  { d.classList.add('active'); }
+  });
+  // re-apply past results
+  G.results.forEach((r, i) => {
+    const d = $(`dot-${i}`);
+    d.className = 'round-dot ' + (r.won ? 'done-win' : 'done-lose');
+  });
+
+  // Emotion card
+  const card = $('emotion-card');
+  card.className = 'panel';
+
+  $('target-emoji').textContent = em.emoji;
+  $('target-emoji').style.filter = `drop-shadow(0 0 24px ${em.color}88)`;
+  $('target-name').textContent = em.id.toUpperCase();
+  $('target-name').style.color = em.color;
+  $('target-name').style.textShadow = `0 0 20px ${em.color}88`;
+  $('target-hint').textContent = em.hint;
+
+  // Detection reset
+  $('detected-value').textContent = '—';
+  $('detected-value').className = '';
+  $('feedback-text').innerHTML = '<span class="dot-loader"><span></span><span></span><span></span></span>&nbsp;Analyzing&hellip;';
+  $('feedback-text').className = 'dim';
+
+  // Timer bar reset
+  const fill = $('timer-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  fill.style.background = `linear-gradient(90deg, var(--cyan), var(--magenta))`;
+  fill.style.boxShadow = `0 0 10px rgba(0,255,229,0.5)`;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fill.style.transition = `width ${ROUND_TIME}s linear`;
+      fill.style.width = '0%';
+    });
+  });
+
+  // Start timer
+  G.timerInterval = setInterval(tickTimer, 1000);
+
+  // Start detection after 1.5s
+  setTimeout(() => {
+    if (!G.ended) {
+      runDetect();
+      G.detectInterval = setInterval(runDetect, 2800);
+    }
+  }, 1500);
+}
+
+// ── TIMER TICK ────────────────────────────────────────────────────────
+function tickTimer() {
+  G.timeLeft--;
+  $('hud-time').textContent = G.timeLeft;
+
+  const fill = $('timer-fill');
+  const pct = G.timeLeft / ROUND_TIME;
+  if (G.timeLeft <= 4) {
+    fill.style.background = 'var(--red)';
+    fill.style.boxShadow  = '0 0 12px rgba(255,34,68,0.8)';
+    $('hud-time').style.color = 'var(--red)';
+    $('hud-time').style.textShadow = '0 0 10px var(--red)';
+  } else if (G.timeLeft <= 7) {
+    fill.style.background = 'var(--amber)';
+    fill.style.boxShadow  = '0 0 10px rgba(255,170,0,0.6)';
+    $('hud-time').style.color = 'var(--amber)';
+    $('hud-time').style.textShadow = '0 0 10px var(--amber)';
+  }
+
+  if (G.timeLeft <= 0) endRound(false);
+}
+
+// ── DETECTION ────────────────────────────────────────────────────────
+async function runDetect() {
+  if (G.detecting || G.ended) return;
+  G.detecting = true;
+
+  try {
+    const b64 = captureFrame();
+    const detected = await callClaude(b64);
+    if (G.ended) return;
+
+    const em = G.shuffled[G.round];
+    const detEm = EMOTIONS.find(e => e.id === detected);
+    const detEmoji = detEm ? detEm.emoji : '';
+
+    $('detected-value').textContent = detected ? `${detEmoji} ${detected.toUpperCase()}` : '???';
+
+    if (detected === em.id) {
+      $('detected-value').className = 'state-match';
+      $('feedback-text').textContent = '✅ Perfect match!';
+      $('feedback-text').className = 'good';
+      endRound(true);
+    } else if (detected) {
+      $('detected-value').className = '';
+      $('feedback-text').textContent = `You look ${detected}... try harder!`;
+      $('feedback-text').className = 'bad';
+    } else {
+      $('feedback-text').innerHTML = '<span class="dot-loader"><span></span><span></span><span></span></span>&nbsp;Scanning&hellip;';
+      $('feedback-text').className = 'dim';
+    }
+  } catch (err) {
+    console.warn('Detect error:', err);
+    $('feedback-text').textContent = 'Retrying scan...';
+    $('feedback-text').className = 'dim';
+  }
+
+  G.detecting = false;
+}
+
+function captureFrame() {
+  const video = $('webcam-el');
+  const canvas = $('cap-canvas');
+  canvas.width = 320; canvas.height = 240;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, -320, 0, 320, 240);
+  ctx.restore();
+  return canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+}
+
+async function callClaude(b64) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 20,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+          { type: 'text', text: 'What emotion is this person expressing? Reply with ONLY one word from exactly this list: happy, sad, angry, surprised, fearful, neutral. Nothing else.' }
+        ]
+      }]
+    })
+  });
+  if (!res.ok) throw new Error('API ' + res.status);
+  const data = await res.json();
+  const txt = (data.content?.[0]?.text || '').toLowerCase().replace(/[^a-z]/g,'');
+  const valid = ['happy','sad','angry','surprised','fearful','neutral'];
+  return valid.find(e => txt.includes(e)) || null;
+}
+
+// ── END ROUND ────────────────────────────────────────────────────────
+function endRound(won) {
+  if (G.ended) return;
+  G.ended = true;
+
+  clearInterval(G.timerInterval);
+  clearInterval(G.detectInterval);
+
+  const em = G.shuffled[G.round];
+  G.results.push({ emotion: em, won });
+
+  // Update dot
+  const d = $(`dot-${G.round}`);
+  d.className = 'round-dot ' + (won ? 'done-win' : 'done-lose');
+
+  if (won) {
+    G.score++;
+    $('hud-score').textContent = pad2(G.score);
+    flash('green');
+    // Pop animation
+    const emojiEl = $('target-emoji');
+    emojiEl.classList.add('pop');
+    setTimeout(() => emojiEl.classList.remove('pop'), 500);
+    // Card glow
+    $('emotion-card').classList.add('state-success');
+    // Stop timer bar
+    const fill = $('timer-fill');
+    const pct = (G.timeLeft / ROUND_TIME) * 100;
+    fill.style.transition = 'none';
+    fill.style.width = pct + '%';
+    fill.style.background = 'var(--lime)';
+    fill.style.boxShadow = '0 0 12px rgba(0,255,136,0.8)';
+    $('hud-time').style.color = 'var(--lime)';
+    $('hud-time').style.textShadow = '0 0 10px var(--lime)';
+  } else {
+    flash('red');
+    $('emotion-card').classList.add('state-fail');
+    if (!$('feedback-text').classList.contains('good')) {
+      $('feedback-text').textContent = "⏰ Time's up!";
+      $('feedback-text').className = 'bad';
+    }
+  }
+
+  G.round++;
+  const delay = won ? 1100 : 1400;
+  if (G.round >= EMOTIONS.length) {
+    setTimeout(showResults, delay);
+  } else {
+    setTimeout(startRound, delay);
+  }
+}
+
+// ── RESULTS ───────────────────────────────────────────────────────────
+function showResults() {
+  show('result');
+
+  const s = G.score, t = EMOTIONS.length;
+  $('result-score').textContent = s;
+  $('result-denom').textContent = `OUT OF ${t}`;
+
+  let icon, title, rank;
+  if (s === t)     { icon='🏆'; title='FLAWLESS VICTORY'; rank='FACE MASTER'; }
+  else if (s >= 5) { icon='🥇'; title='OUTSTANDING!'; rank='EMOTION EXPERT'; }
+  else if (s >= 4) { icon='🥈'; title='GREAT JOB!'; rank='SKILLED ACTOR'; }
+  else if (s >= 2) { icon='🥉'; title='KEEP PRACTICING!'; rank='AMATEUR MIMIC'; }
+  else if (s === 1){ icon='😬'; title='ROUGH START!'; rank='STONE FACE'; }
+  else             { icon='😶'; title='NO MATCHES!'; rank='EMOTIONLESS'; }
+
+  $('result-icon').textContent = icon;
+  $('result-title').textContent = title;
+  $('result-rank').textContent  = `— ${rank} —`;
+
+  const grid = $('result-grid');
+  grid.innerHTML = '';
+  G.results.forEach(({ emotion, won }) => {
+    const card = document.createElement('div');
+    card.className = `result-card ${won ? 'win' : 'lose'}`;
+    card.innerHTML = `
+      <span class="r-emoji">${emotion.emoji}</span>
+      <span class="r-name">${emotion.id}</span>
+      <span class="r-icon">${won ? '✅' : '❌'}</span>
+    `;
+    grid.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
