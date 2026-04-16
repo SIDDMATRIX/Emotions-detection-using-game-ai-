@@ -1,0 +1,61 @@
+:root {
+    --primary-color: #4CAF50;
+    --secondary-color: #FFC107;
+    --background-color: #f0f0f0;
+    --text-color: #333;
+    --canvas-background: #ffffff;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+}
+
+h1, h2, h3 {
+    color: var(--primary-color);
+}
+
+#gameCanvas {
+    width: 100%;
+    height: auto;
+    background-color: var(--canvas-background);
+    border: 2px solid var(--primary-color);
+}
+
+.emotion-indicator {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.emotion {
+    width: 50px;
+    height: 50px;
+    margin: 0 10px;
+    border-radius: 50%;
+    border: 2px solid var(--secondary-color);
+}
+
+.music-level {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-color);
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+@media (max-width: 600px) {
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+    }
+    .emotion {
+        width: 30px;
+        height: 30px;
+    }
+}
